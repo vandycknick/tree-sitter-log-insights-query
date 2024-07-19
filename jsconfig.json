@@ -1,0 +1,7 @@
+{
+  "files": ["node_modules/tree-sitter-cli/dsl.d.ts", "grammar.js"],
+  "compilerOptions": {
+    "checkJs": true,
+    "strictNullChecks": true
+  }
+}

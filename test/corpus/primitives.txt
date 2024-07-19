@@ -1,0 +1,24 @@
+================================================================================
+Strings can use single or double quotes
+================================================================================
+
+fields @timestamp, @requestId, @message, @logStream
+| filter type = "REPORT" and type = 'REPORT'
+
+--------------------------------------------------------------------------------
+
+(query
+  (fields_command
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name))
+  (pipe)
+  (filter_command
+    (binary_exp
+      (binary_exp
+        (field_name)
+        (string))
+      (binary_exp
+        (field_name)
+        (string)))))

@@ -1,0 +1,603 @@
+================================================================================
+General: Find the 25 most recently added log events.
+================================================================================
+
+fields @timestamp, @message | sort @timestamp desc | limit 25
+
+--------------------------------------------------------------------------------
+
+(query
+  (fields_command
+    (field_name)
+    (field_name))
+  (pipe)
+  (sort_command
+    (field_name))
+  (pipe)
+  (limit_command
+    (number)))
+
+================================================================================
+General: Get a list of the number of exceptions per hour.
+================================================================================
+
+filter @message like /Exception/
+    | stats count(*) as exceptionCount by bin(1h)
+    | sort exceptionCount desc
+
+--------------------------------------------------------------------------------
+
+(query
+  (filter_command
+    (binary_exp
+      (field_name)
+      (regex
+        (regex_pattern))))
+  (pipe)
+  (stats_command
+    (by
+      (alias
+        (func_call
+          (identifier)
+          (args
+            (wildcard)))
+        (identifier))
+      (func_call
+        (identifier)
+        (args
+          (timespan
+            (number))))))
+  (pipe)
+  (sort_command
+    (field_name)))
+
+================================================================================
+General: Get the most recent log event for each unique value of the server field.
+================================================================================
+
+fields @timestamp, server, severity, message
+| sort @timestamp asc
+| dedup server
+
+--------------------------------------------------------------------------------
+
+(query
+  (fields_command
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name))
+  (pipe)
+  (sort_command
+    (field_name))
+  (pipe)
+  (dedup_command
+    (field_name)))
+
+================================================================================
+General: Get the most recent log event for each unique value of the server field for each severity type.
+================================================================================
+
+fields @timestamp, server, severity, message
+| sort @timestamp desc
+| dedup server, severity
+
+--------------------------------------------------------------------------------
+
+(query
+  (fields_command
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name))
+  (pipe)
+  (sort_command
+    (field_name))
+  (pipe)
+  (dedup_command
+    (field_name)
+    (field_name)))
+
+================================================================================
+Lambda: Determine the amount of overprovisioned memory.
+================================================================================
+
+filter @type = "REPORT"
+    | stats max(@memorySize / 1000 / 1000) as provisonedMemoryMB,
+        min(@maxMemoryUsed / 1000 / 1000) as smallestMemoryRequestMB,
+        avg(@maxMemoryUsed / 1000 / 1000) as avgMemoryUsedMB,
+        max(@maxMemoryUsed / 1000 / 1000) as maxMemoryUsedMB,
+        provisonedMemoryMB - maxMemoryUsedMB as overProvisionedMB
+
+--------------------------------------------------------------------------------
+
+(query
+  (filter_command
+    (binary_exp
+      (field_name)
+      (string)))
+  (pipe)
+  (stats_command
+    (alias
+      (func_call
+        (identifier)
+        (args
+          (binary_exp
+            (binary_exp
+              (field_name)
+              (number))
+            (number))))
+      (identifier))
+    (alias
+      (func_call
+        (identifier)
+        (args
+          (binary_exp
+            (binary_exp
+              (field_name)
+              (number))
+            (number))))
+      (identifier))
+    (alias
+      (func_call
+        (identifier)
+        (args
+          (binary_exp
+            (binary_exp
+              (field_name)
+              (number))
+            (number))))
+      (identifier))
+    (alias
+      (func_call
+        (identifier)
+        (args
+          (binary_exp
+            (binary_exp
+              (field_name)
+              (number))
+            (number))))
+      (identifier))
+    (alias
+      (binary_exp
+        (field_name)
+        (field_name))
+      (identifier))))
+
+================================================================================
+Lambda: Create a latency report.
+================================================================================
+
+filter @type = "REPORT" |
+    stats avg(@duration), max(@duration), min(@duration) by bin(5m)
+
+--------------------------------------------------------------------------------
+
+(query
+  (filter_command
+    (binary_exp
+      (field_name)
+      (string)))
+  (pipe)
+  (stats_command
+    (func_call
+      (identifier)
+      (args
+        (field_name)))
+    (func_call
+      (identifier)
+      (args
+        (field_name)))
+    (by
+      (func_call
+        (identifier)
+        (args
+          (field_name)))
+      (func_call
+        (identifier)
+        (args
+          (timespan
+            (number)))))))
+
+================================================================================
+Lambda: Search for slow function invocations, and eliminate duplicate requests that can arise from retries or client-side code. In this query, @duration is in milliseconds.
+================================================================================
+
+fields @timestamp, @requestId, @message, @logStream
+| filter @type = "REPORT" and @duration > 1000
+| sort @timestamp desc
+| dedup @requestId
+| limit 20
+
+--------------------------------------------------------------------------------
+
+(query
+  (fields_command
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name))
+  (pipe)
+  (filter_command
+    (binary_exp
+      (binary_exp
+        (field_name)
+        (string))
+      (binary_exp
+        (field_name)
+        (number))))
+  (pipe)
+  (sort_command
+    (field_name))
+  (pipe)
+  (dedup_command
+    (field_name))
+  (pipe)
+  (limit_command
+    (number)))
+
+================================================================================
+VPC: Find the top 15 packet transfers across hosts:
+================================================================================
+
+stats sum(packets) as packetsTransferred by srcAddr, dstAddr
+    | sort packetsTransferred  desc
+    | limit 15
+
+--------------------------------------------------------------------------------
+
+(query
+  (stats_command
+    (by
+      (alias
+        (func_call
+          (identifier)
+          (args
+            (field_name)))
+        (identifier))
+      (field_name))
+    (field_name))
+  (pipe)
+  (sort_command
+    (field_name))
+  (pipe)
+  (limit_command
+    (number)))
+
+================================================================================
+VPC: Find the top 15 byte transfers for hosts on a given subnet.
+================================================================================
+
+filter isIpv4InSubnet(srcAddr, "192.0.2.0/24")
+    | stats sum(bytes) as bytesTransferred by dstAddr
+    | sort bytesTransferred desc
+    | limit 15
+
+--------------------------------------------------------------------------------
+
+(query
+  (filter_command
+    (func_call
+      (identifier)
+      (args
+        (field_name)
+        (string))))
+  (pipe)
+  (stats_command
+    (by
+      (alias
+        (func_call
+          (identifier)
+          (args
+            (field_name)))
+        (identifier))
+      (field_name)))
+  (pipe)
+  (sort_command
+    (field_name))
+  (pipe)
+  (limit_command
+    (number)))
+
+================================================================================
+VPC: Find the IP addresses that use UDP as a data transfer protocol.
+================================================================================
+
+filter protocol=17 | stats count(*) by srcAddr
+
+--------------------------------------------------------------------------------
+
+(query
+  (filter_command
+    (binary_exp
+      (field_name)
+      (number)))
+  (pipe)
+  (stats_command
+    (by
+      (func_call
+        (identifier)
+        (args
+          (wildcard)))
+      (field_name))))
+
+================================================================================
+VPC: Find the IP addresses where flow records were skipped during the capture window.
+TODO: This one is broken because my grammber expects that an alias always comes before a group by
+================================================================================
+
+filter logStatus="SKIPDATA"
+    | stats count(*) by bin(1h) as t
+    | sort t
+
+--------------------------------------------------------------------------------
+
+(query
+  (filter_command
+    (binary_exp
+      (field_name)
+      (string)))
+  (pipe)
+  (stats_command
+    (by
+      (func_call
+        (identifier)
+        (args
+          (wildcard)))
+      (func_call
+        (identifier)
+        (args
+          (timespan
+            (number))))))
+  (ERROR
+    (identifier))
+  (pipe)
+  (sort_command
+    (field_name)))
+
+================================================================================
+VPC: Find a single record for each connection, to help troubleshoot network connectivity issues.
+================================================================================
+
+fields @timestamp, srcAddr, dstAddr, srcPort, dstPort, protocol, bytes
+| filter logStream = 'vpc-flow-logs' and interfaceId = 'eni-0123456789abcdef0'
+| sort @timestamp desc
+| dedup srcAddr, dstAddr, srcPort, dstPort, protocol
+| limit 20
+
+--------------------------------------------------------------------------------
+
+(query
+  (fields_command
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name))
+  (pipe)
+  (filter_command
+    (binary_exp
+      (binary_exp
+        (field_name)
+        (string))
+      (binary_exp
+        (field_name)
+        (string))))
+  (pipe)
+  (sort_command
+    (field_name))
+  (pipe)
+  (dedup_command
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name))
+  (pipe)
+  (limit_command
+    (number)))
+
+================================================================================
+ROUTE53: Find the distribution of records per hour by query type.
+================================================================================
+
+stats count(*) by queryType, bin(1h)
+
+--------------------------------------------------------------------------------
+
+(query
+  (stats_command
+    (by
+      (func_call
+        (identifier)
+        (args
+          (wildcard)))
+      (field_name))
+    (func_call
+      (identifier)
+      (args
+        (timespan
+          (number))))))
+
+================================================================================
+ROUTE53: Find the 10 DNS resolvers with the highest number of requests.
+================================================================================
+
+stats count(*) as numRequests by resolverIp
+    | sort numRequests desc
+    | limit 10
+
+--------------------------------------------------------------------------------
+
+(query
+  (stats_command
+    (by
+      (alias
+        (func_call
+          (identifier)
+          (args
+            (wildcard)))
+        (identifier))
+      (field_name)))
+  (pipe)
+  (sort_command
+    (field_name))
+  (pipe)
+  (limit_command
+    (number)))
+
+================================================================================
+ROUTE53: Find the number of records by domain and subdomain where the server failed to complete the DNS request.
+================================================================================
+
+filter responseCode="SERVFAIL" | stats count(*) by queryName
+
+--------------------------------------------------------------------------------
+
+(query
+  (filter_command
+    (binary_exp
+      (field_name)
+      (string)))
+  (pipe)
+  (stats_command
+    (by
+      (func_call
+        (identifier)
+        (args
+          (wildcard)))
+      (field_name))))
+
+================================================================================
+CLOUDTRAIL: Find the number of log entries for each service, event type, and AWS Region.
+================================================================================
+
+stats count(*) by eventSource, eventName, awsRegion
+
+--------------------------------------------------------------------------------
+
+(query
+  (stats_command
+    (by
+      (func_call
+        (identifier)
+        (args
+          (wildcard)))
+      (field_name))
+    (field_name)
+    (field_name)))
+
+================================================================================
+CLOUDTRAIL: Find the Amazon EC2 hosts that were started or stopped in a given AWS Region.
+================================================================================
+
+filter (eventName="StartInstances" or eventName="StopInstances") and awsRegion="us-east-2"
+
+--------------------------------------------------------------------------------
+
+(query
+  (filter_command
+    (binary_exp
+      (grouping
+        (binary_exp
+          (binary_exp
+            (field_name)
+            (string))
+          (binary_exp
+            (field_name)
+            (string))))
+      (binary_exp
+        (field_name)
+        (string)))))
+
+================================================================================
+CLOUDTRAIL: Find the AWS Regions, user names, and ARNs of newly created IAM users.
+================================================================================
+
+filter eventName="CreateUser"
+    | fields awsRegion, requestParameters.userName, responseElements.user.arn
+
+--------------------------------------------------------------------------------
+
+(query
+  (filter_command
+    (binary_exp
+      (field_name)
+      (string)))
+  (pipe)
+  (fields_command
+    (field_name)
+    (field_name)
+    (field_name)))
+
+================================================================================
+CLOUDTRAIL: Find the number of records where an exception occurred while invoking the API UpdateTrail.
+================================================================================
+
+filter eventName="UpdateTrail" and ispresent(errorCode)
+    | stats count(*) by errorCode, errorMessage
+
+--------------------------------------------------------------------------------
+
+(query
+  (filter_command
+    (binary_exp
+      (binary_exp
+        (field_name)
+        (string))
+      (func_call
+        (identifier)
+        (args
+          (field_name)))))
+  (pipe)
+  (stats_command
+    (by
+      (func_call
+        (identifier)
+        (args
+          (wildcard)))
+      (field_name))
+    (field_name)))
+
+================================================================================
+CLOUDTRAIL: Find log entries where TLS 1.0 or 1.1 was used
+================================================================================
+
+filter tlsDetails.tlsVersion in [ "TLSv1", "TLSv1.1" ]
+| stats count(*) as numOutdatedTlsCalls by userIdentity.accountId, recipientAccountId, eventSource, eventName, awsRegion, tlsDetails.tlsVersion, tlsDetails.cipherSuite, userAgent
+| sort eventSource, eventName, awsRegion, tlsDetails.tlsVersion
+
+--------------------------------------------------------------------------------
+
+(query
+  (filter_command
+    (binary_exp
+      (field_name)
+      (array
+        (string)
+        (string))))
+  (pipe)
+  (stats_command
+    (by
+      (alias
+        (func_call
+          (identifier)
+          (args
+            (wildcard)))
+        (identifier))
+      (field_name))
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name))
+  (pipe)
+  (sort_command
+    (field_name)
+    (field_name)
+    (field_name)
+    (field_name)))
