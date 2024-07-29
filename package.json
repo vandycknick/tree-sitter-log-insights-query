@@ -47,7 +47,6 @@
     {
       "scope": "source.log_insights_query",
       "file-types": [
-        "liq",
         "lq"
       ]
     }
